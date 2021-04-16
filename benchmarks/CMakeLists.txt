@@ -19,29 +19,6 @@ if (benchmark_ADDED)
   set_target_properties(benchmark PROPERTIES CXX_STANDARD 14)
 endif()
 
-
-#CPMAddPackage(
-#    NAME SLABALLOC
-#    GITHUB_REPOSITORY Nicolas-Iskos/SlabAlloc
-#    #GITHUB_REPOSITORY owensgroup/SlabAlloc
-#    GIT_TAG origin/resize
-#    #GIT_TAG origin/master
-#    DOWNLOAD_ONLY YES
-#)
-
-#add_library(SLABALLOC INTERFACE)
-#target_include_directories(SLABALLOC INTERFACE "${SLABALLOC_SOURCE_DIR}/src")
-
-#CPMAddPackage(
-#    NAME SLABHASH
-#    GITHUB_REPOSITORY Nicolas-Iskos/SlabHash
-#    GIT_TAG origin/resize
-#    DOWNLOAD_ONLY YES
-#)
-
-#add_library(SLABHASH INTERFACE)
-#target_include_directories(SLABHASH INTERFACE "${SLABHASH_SOURCE_DIR}/src")
-
 CPMAddPackage(
     NAME WARPCORE
     GITHUB_REPOSITORY sleeepyjack/warpcore
@@ -64,8 +41,6 @@ endif()
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 
-include_directories("${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")
-
 function(ConfigureBench BENCH_NAME BENCH_SRC)
     add_executable(${BENCH_NAME} "${BENCH_SRC}")
     set_target_properties(${BENCH_NAME} PROPERTIES 
@@ -80,9 +55,6 @@ function(ConfigureBench BENCH_NAME BENCH_SRC)
                                         benchmark benchmark_main 
                                         pthread 
                                         cuco
-                                        #SlabHash
-                                        #SLABALLOC
-                                        #SLABHASH
                                         WARPCORE
                                         )
 
@@ -97,13 +69,17 @@ endfunction(ConfigureBench)
 ###################################################################################################
 set(DYNAMIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/dynamic_h2h_bench.cu")
 ConfigureBench(DYNAMIC_H2H_MAP_BENCH "${DYNAMIC_H2H_BENCH_SRC}")
+# include the resizing version of SlabAlloc for the dynamic benchmarks
+target_include_directories(DYNAMIC_H2H_MAP_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHashResizing/SlabAlloc/src")
 
 ###################################################################################################
 set(STATIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/static_h2h_bench.cu")
 ConfigureBench(STATIC_H2H_MAP_BENCH "${STATIC_H2H_BENCH_SRC}")
+# include the non-resizing version of SlabAlloc for the dynamic benchmarks
+target_include_directories(STATIC_H2H_MAP_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")
 
 ###################################################################################################
 set(SLABHASH_MAX_LF_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/slabhash_max_lf.cu")
 ConfigureBench(SLABHASH_MAX_LF "${SLABHASH_MAX_LF_SRC}")
-
-###################################################################################################
+# include the non-resizing version of SlabAlloc for the dynamic benchmarks
+target_include_directories(SLABHASH_MAX_LF PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")

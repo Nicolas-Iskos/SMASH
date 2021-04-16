@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <SlabHash/src/gpu_hash_table.cuh>
+#include <SlabHashResizing/src/gpu_hash_table.cuh>
 #include <cuco/legacy_static_map.cuh>
 #include <single_value_hash_table.cuh>
 
