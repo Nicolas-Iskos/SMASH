@@ -16,7 +16,8 @@
 
 // Just to placate compiler!!
 //#include <gpu_hash_table.cuh>
-#include "/home/nico/Documents/hashmap/SlabHash/src/gpu_hash_table.cuh"
+//#include "/home/nico/Documents/hashmap/SlabHash/src/gpu_hash_table.cuh"
+#include <SlabHash/src/gpu_hash_table.cuh>
 #include <cuco/legacy_static_map.cuh>
 #include <cuco/static_map.cuh>
 #include <single_value_hash_table.cuh>

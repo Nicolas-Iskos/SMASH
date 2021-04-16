@@ -20,27 +20,27 @@ if (benchmark_ADDED)
 endif()
 
 
-CPMAddPackage(
-    NAME SLABALLOC
-    GITHUB_REPOSITORY Nicolas-Iskos/SlabAlloc
-    #GITHUB_REPOSITORY owensgroup/SlabAlloc
-    GIT_TAG origin/resize
-    #GIT_TAG origin/master
-    DOWNLOAD_ONLY YES
-)
+#CPMAddPackage(
+#    NAME SLABALLOC
+#    GITHUB_REPOSITORY Nicolas-Iskos/SlabAlloc
+#    #GITHUB_REPOSITORY owensgroup/SlabAlloc
+#    GIT_TAG origin/resize
+#    #GIT_TAG origin/master
+#    DOWNLOAD_ONLY YES
+#)
 
-add_library(SLABALLOC INTERFACE)
-target_include_directories(SLABALLOC INTERFACE "${SLABALLOC_SOURCE_DIR}/src")
+#add_library(SLABALLOC INTERFACE)
+#target_include_directories(SLABALLOC INTERFACE "${SLABALLOC_SOURCE_DIR}/src")
 
-CPMAddPackage(
-    NAME SLABHASH
-    GITHUB_REPOSITORY Nicolas-Iskos/SlabHash
-    GIT_TAG origin/resize
-    DOWNLOAD_ONLY YES
-)
+#CPMAddPackage(
+#    NAME SLABHASH
+#    GITHUB_REPOSITORY Nicolas-Iskos/SlabHash
+#    GIT_TAG origin/resize
+#    DOWNLOAD_ONLY YES
+#)
 
-add_library(SLABHASH INTERFACE)
-target_include_directories(SLABHASH INTERFACE "${SLABHASH_SOURCE_DIR}/src")
+#add_library(SLABHASH INTERFACE)
+#target_include_directories(SLABHASH INTERFACE "${SLABHASH_SOURCE_DIR}/src")
 
 CPMAddPackage(
     NAME WARPCORE
@@ -64,6 +64,8 @@ endif()
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 
+include_directories("${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")
+
 function(ConfigureBench BENCH_NAME BENCH_SRC)
     add_executable(${BENCH_NAME} "${BENCH_SRC}")
     set_target_properties(${BENCH_NAME} PROPERTIES 
@@ -71,13 +73,16 @@ function(ConfigureBench BENCH_NAME BENCH_SRC)
                                         CUDA_ARCHITECTURES ${GPU_ARCHS}
                                         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gbenchmarks")
     target_include_directories(${BENCH_NAME} PRIVATE
-                                             "${CMAKE_CURRENT_SOURCE_DIR}")
+                                             "${CMAKE_CURRENT_SOURCE_DIR}"
+                                             )
+    
     target_link_libraries(${BENCH_NAME} PRIVATE 
                                         benchmark benchmark_main 
                                         pthread 
                                         cuco
-                                        SLABALLOC
-                                        SLABHASH
+                                        #SlabHash
+                                        #SLABALLOC
+                                        #SLABHASH
                                         WARPCORE
                                         )
 
