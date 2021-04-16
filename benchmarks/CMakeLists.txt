@@ -90,18 +90,6 @@ endfunction(ConfigureBench)
 ###################################################################################################
 
 ###################################################################################################
-set(DYNAMIC_MAP_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/dynamic_map_bench.cu")
-ConfigureBench(DYNAMIC_MAP_BENCH "${DYNAMIC_MAP_BENCH_SRC}")
-
-###################################################################################################
-set(STATIC_MAP_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/static_map_bench.cu")
-ConfigureBench(STATIC_MAP_BENCH "${STATIC_MAP_BENCH_SRC}")
-
-###################################################################################################
-set(LEGACY_STATIC_MAP_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/legacy_static_map_bench.cu")
-ConfigureBench(LEGACY_STATIC_MAP_BENCH "${LEGACY_STATIC_MAP_BENCH_SRC}")
-
-###################################################################################################
 set(DYNAMIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/dynamic_h2h_bench.cu")
 ConfigureBench(DYNAMIC_H2H_MAP_BENCH "${DYNAMIC_H2H_BENCH_SRC}")
 

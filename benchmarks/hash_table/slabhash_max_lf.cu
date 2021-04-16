@@ -62,7 +62,7 @@ void slabhash_max_lf() {
  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
   
   std::size_t num_keys = 1<<29;
-  uint32_t base_size = 1.1 * (1<<30);
+  uint32_t base_size = 0.875 * (1<<30);
   std::size_t slab_size = 128;
   std::size_t num_buckets = base_size / slab_size;
   int64_t device_idx = 0;
@@ -73,8 +73,7 @@ void slabhash_max_lf() {
   generate_keys<Dist, Key>(h_keys.begin(), h_keys.end());
   std::vector<Value> h_values (h_keys);
 
-  ///*
-  auto batch_size = 1e5;
+  auto batch_size = 1E5;
   map_type map{num_keys, num_buckets, device_idx, seed, true, true, false};
   for(uint32_t i = 0; i < num_keys; i += batch_size) {
     float k = map.hash_build_with_unique_keys(h_keys.data() + i, 
@@ -82,10 +81,6 @@ void slabhash_max_lf() {
     std::cout << k << std::endl;
     std::cout << "lf " << static_cast<float>(i) / (1<<28)  << std::endl;
   }
-  //*/
-
-  //map.hash_search
-  
 }
 
 int main() {

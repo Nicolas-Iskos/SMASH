@@ -48,11 +48,6 @@ endfunction(ConfigureTest)
 ###################################################################################################
 ### test sources ##################################################################################
 ###################################################################################################
-set(STATIC_MAP_TEST_SRC 
-    "${CMAKE_CURRENT_SOURCE_DIR}/static_map/static_map_test.cu")
-
-ConfigureTest(STATIC_MAP_TEST "${STATIC_MAP_TEST_SRC}")
-####################################################################################################
 set(DYNAMIC_MAP_TEST_SRC 
     "${CMAKE_CURRENT_SOURCE_DIR}/dynamic_map/dynamic_map_test.cu")
 
