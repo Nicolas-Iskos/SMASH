@@ -61,8 +61,15 @@ void slabhash_max_lf() {
     
  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
   
-  std::size_t num_keys = 1<<29;
-  uint32_t base_size = 0.875 * (1<<30);
+  std::size_t total_footprint = 1<<30;
+  float split_fraction = 0.0625;
+
+  std::size_t base_size = split_fraction * total_footprint;
+  // These benchmarks use the unmodified version of SlabHash, so the number of slabs in the
+  // pool allocator has to be adjusted manually to account for the split fraction specificed
+  // here.
+  
+  std::size_t num_keys = 20E7;
   std::size_t slab_size = 128;
   std::size_t num_buckets = base_size / slab_size;
   int64_t device_idx = 0;
@@ -77,9 +84,10 @@ void slabhash_max_lf() {
   map_type map{num_keys, num_buckets, device_idx, seed, true, true, false};
   for(uint32_t i = 0; i < num_keys; i += batch_size) {
     float k = map.hash_build_with_unique_keys(h_keys.data() + i, 
-                                                  h_values.data() + i, batch_size);
-    std::cout << k << std::endl;
-    std::cout << "lf " << static_cast<float>(i) / (1<<28)  << std::endl;
+                                              h_values.data() + i, batch_size);
+    std::cout << "current load factor = " << 
+      static_cast<float>((sizeof(Key) + sizeof(Value)) * i) / total_footprint << 
+      std::endl;
   }
 }
 

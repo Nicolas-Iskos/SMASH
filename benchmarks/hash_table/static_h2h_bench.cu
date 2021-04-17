@@ -15,8 +15,6 @@
  */
 
 // Just to placate compiler!!
-//#include <gpu_hash_table.cuh>
-//#include "/home/nico/Documents/hashmap/SlabHash/src/gpu_hash_table.cuh"
 #include <SlabHash/src/gpu_hash_table.cuh>
 #include <cuco/legacy_static_map.cuh>
 #include <cuco/static_map.cuh>
@@ -75,12 +73,6 @@ static void generate_keys(OutputIt output_begin, OutputIt output_end) {
   }
 }
 
-static void gen_final_size(benchmark::internal::Benchmark* b) {
-  for(auto size = 10'000'000; size <= 150'000'000; size += 20'000'000) {
-    b->Args({size});
-  }
-}
-
 /**
  * @brief Generates input sizes and hash table occupancies
  *
@@ -89,14 +81,6 @@ static void gen_size_and_occupancy(benchmark::internal::Benchmark* b) {
   for (auto size = 1<<27; size <= 1<<27; size *= 10) {
     for (auto occupancy = 40; occupancy <= 90; occupancy += 10) {
       b->Args({size, occupancy});
-    }
-  }
-}
-
-static void gen_size_and_slab_count(benchmark::internal::Benchmark *b) {
-  for (auto size = 10'000'000; size <= 10'000'000; size *= 2) {
-    for(auto deciSPBAvg = 1; deciSPBAvg <= 20; ++deciSPBAvg) {
-      b->Args({size, deciSPBAvg});
     }
   }
 }
@@ -319,89 +303,19 @@ static void BM_dynamic_map_find_none(::benchmark::State& state) {
 }
 
 template <typename Key, typename Value, dist_type Dist>
-static void BM_legacy_static_map_insert(::benchmark::State& state) {
-  using map_type = cuco::legacy_static_map<Key, Value>;
-  
-  std::size_t num_keys = state.range(0);
-  float occupancy = state.range(1) / float{100};
-  std::size_t size = num_keys / occupancy;
-
-  std::vector<Key> h_keys( num_keys );
-  std::vector<cuco::pair_type<Key, Value>> h_pairs( num_keys );
-  
-  generate_keys<Dist, Key>(h_keys.begin(), h_keys.end());
-  
-  for(auto i = 0; i < num_keys; ++i) {
-    Key key = h_keys[i];
-    Value val = h_keys[i];
-    h_pairs[i].first = key;
-    h_pairs[i].second = val;
-  }
-
-  thrust::device_vector<cuco::pair_type<Key, Value>> d_pairs( h_pairs );
-
-  for(auto _ : state) {
-    map_type map{size, -1, -1};
-    {
-      cuda_event_timer raii{state};
-      map.insert(d_pairs.begin(), d_pairs.end());
-    }
-  }
-
-  state.SetBytesProcessed((sizeof(Key) + sizeof(Value)) *
-                          int64_t(state.iterations()) *
-                          int64_t(state.range(0)));
-}
-
-template <typename Key, typename Value, dist_type Dist>
-static void BM_legacy_static_map_find(::benchmark::State& state) {
-  using map_type = cuco::legacy_static_map<Key, Value>;
-  
-  std::size_t num_keys = state.range(0);
-  float occupancy = state.range(1) / float{100};
-  std::size_t size = num_keys / occupancy;
-
-  map_type map{size, -1, -1};
-  auto view = map.get_device_mutable_view();
-
-  std::vector<Key> h_keys( num_keys );
-  std::vector<Value> h_values( num_keys );
-  std::vector<cuco::pair_type<Key, Value>> h_pairs ( num_keys );
-  std::vector<Value> h_results( num_keys );
-
-  generate_keys<Dist, Key>(h_keys.begin(), h_keys.end());
-  
-  for(auto i = 0; i < num_keys; ++i) {
-    Key key = h_keys[i];
-    Value val = h_keys[i];
-    h_pairs[i].first = key;
-    h_pairs[i].second = val;
-  }
-
-  thrust::device_vector<Key> d_keys( h_keys ); 
-  thrust::device_vector<Value> d_results( num_keys);
-  thrust::device_vector<cuco::pair_type<Key, Value>> d_pairs( h_pairs );
-
-  map.insert(d_pairs.begin(), d_pairs.end());
-  
-  for(auto _ : state) {
-    {
-      cuda_event_timer raii{state};
-      map.find(d_keys.begin(), d_keys.end(), d_results.begin());
-    }
-  }
-
-  state.SetBytesProcessed((sizeof(Key) + sizeof(Value)) * int64_t(state.iterations()) *
-                          int64_t(state.range(0)));
-}
-
-template <typename Key, typename Value, dist_type Dist>
 static void BM_slabhash_insert_lf(::benchmark::State& state) {
 
   using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
   
+  std::size_t total_footprint = 1<<30;
+  float split_fraction = 0.0625;
+
+  std::size_t base_size = split_fraction * total_footprint;
+  // These benchmarks use the unmodified version of SlabHash, so the number of slabs in the
+  // pool allocator has to be adjusted manually to account for the split fraction specificed
+  // here.
+
   std::size_t num_keys = state.range(0);
-  uint32_t base_size = 0.069 * (1<<30);
   std::size_t slab_size = 128;
   std::size_t num_buckets = base_size / slab_size;
   int64_t device_idx = 0;
@@ -430,12 +344,17 @@ static void BM_slabhash_find_all_lf(::benchmark::State& state) {
 
   using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
   
-  std::size_t num_keys = state.range(0);
+  std::size_t total_footprint = 1<<30;
+  float split_fraction = 0.0625;
 
-  std::size_t base_slabs_size = 0.069 * (1<<30);
+  std::size_t base_slabs_size = split_fraction * total_footprint;
+  // These benchmarks use the unmodified version of SlabHash, so the number of slabs in the
+  // pool allocator has to be adjusted manually to account for the split fraction specificed
+  // here.
+
+  std::size_t num_keys = state.range(0);
   std::size_t slab_size = 128;
   std::size_t num_buckets = base_slabs_size / slab_size;
-  //std::cout << "num_buckets: " << num_buckets << std::endl;
   int64_t device_idx = 0;
   int64_t seed = 12;
   
@@ -468,12 +387,17 @@ static void BM_slabhash_find_none_lf(::benchmark::State& state) {
 
   using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
   
-  std::size_t num_keys = state.range(0);
+  std::size_t total_footprint = 1<<30;
+  float split_fraction = 0.0625;
 
-  std::size_t base_slabs_size = 0.069 * (1<<30);
+  std::size_t base_slabs_size = split_fraction * total_footprint;
+  // These benchmarks use the unmodified version of SlabHash, so the number of slabs in the
+  // pool allocator has to be adjusted manually to account for the split fraction specificed
+  // here.
+  
+  std::size_t num_keys = state.range(0);
   std::size_t slab_size = 128;
   std::size_t num_buckets = base_slabs_size / slab_size;
-  //std::cout << "num_buckets: " << num_buckets << std::endl;
   int64_t device_idx = 0;
   int64_t seed = 12;
   
@@ -503,95 +427,65 @@ static void BM_slabhash_find_none_lf(::benchmark::State& state) {
                           int64_t(state.range(0)));
 }
 
-/*
+//*
 BENCHMARK_TEMPLATE(BM_warpcore_insert, std::uint32_t, std::uint32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
+//*/
 
+//*
 BENCHMARK_TEMPLATE(BM_warpcore_find_all, std::uint32_t, std::uint32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
-  
+//*/
+
+//*
 BENCHMARK_TEMPLATE(BM_warpcore_find_none, std::uint32_t, std::uint32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
 //*/
 
-/*
-BENCHMARK_TEMPLATE(BM_warpcore_insert, std::uint32_t, std::uint32_t, dist_type::UNIFORM)
-  ->Unit(benchmark::kMillisecond)
-  ->Apply(gen_size_and_occupancy)
-  ->UseManualTime();
-//*/
-
-/*
-BENCHMARK_TEMPLATE(BM_warpcore_find_all, std::uint32_t, std::uint32_t, dist_type::UNIQUE)
-  ->Unit(benchmark::kMillisecond)
-  ->Apply(gen_size_and_occupancy)
-  ->UseManualTime();
-//*/
-
-///*
+//*
 BENCHMARK_TEMPLATE(BM_dynamic_map_insert, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
 //*/
 
-/*
+//*
 BENCHMARK_TEMPLATE(BM_dynamic_map_find_none, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
 //*/
 
-///*
+//*
 BENCHMARK_TEMPLATE(BM_dynamic_map_find_all, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
 //*/
 
-/*
-BENCHMARK_TEMPLATE(BM_dynamic_map_find_all, int32_t, int32_t, dist_type::UNIFORM)
+//*
+BENCHMARK_TEMPLATE(BM_slabhash_insert_lf, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
 //*/
 
-/*
-BENCHMARK_TEMPLATE(BM_slabhash_insert_lf, int32_t, int32_t, dist_type::UNIQUE)
-  ->Unit(benchmark::kMillisecond)
-  ->Apply(gen_size_and_occupancy)
-  ->UseManualTime();
-
+//*
 BENCHMARK_TEMPLATE(BM_slabhash_find_all_lf, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
+//*/
 
+//*
 BENCHMARK_TEMPLATE(BM_slabhash_find_none_lf, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_size_and_occupancy)
   ->UseManualTime();
-*/
-
-/*
-BENCHMARK_TEMPLATE(BM_slabhash_insert_lf, int32_t, int32_t, dist_type::UNIFORM)
-  ->Unit(benchmark::kMillisecond)
-  ->Apply(gen_size_and_occupancy)
-  ->UseManualTime();
-
-BENCHMARK_TEMPLATE(BM_slabhash_find_all_lf, int32_t, int32_t, dist_type::UNIFORM)
-  ->Unit(benchmark::kMillisecond)
-  ->Apply(gen_size_and_occupancy)
-  ->UseManualTime();
-
-BENCHMARK_TEMPLATE(BM_slabhash_find_none_lf, int32_t, int32_t, dist_type::UNIFORM)
-  ->Unit(benchmark::kMillisecond)
-  ->Apply(gen_size_and_occupancy)
-  ->UseManualTime();
-*/
+//*/
