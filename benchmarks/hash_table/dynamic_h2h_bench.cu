@@ -71,6 +71,20 @@ static void gen_final_size(benchmark::internal::Benchmark* b) {
   }
 }
 
+static constexpr uint32_t get_num_super_blocks(
+  uint32_t log_num_mem_blocks,
+  uint32_t total_footprint,
+  float split_fraction) {
+  
+  uint32_t slab_size = 128;
+  uint32_t pool_slabs_size = (1 - split_fraction) * total_footprint;
+  uint32_t mem_per_super_block = (1<<10) * slab_size * (1<<log_num_mem_blocks);
+  uint32_t num_super_blocks = 
+    (pool_slabs_size + mem_per_super_block - 1) / mem_per_super_block;
+
+  return num_super_blocks;
+}
+
 template <typename Key, typename Value, dist_type Dist>
 static void BM_dynamic_insert(::benchmark::State& state) {
 
@@ -198,18 +212,28 @@ static void BM_dynamic_find_none(::benchmark::State& state) {
 template <typename Key, typename Value, dist_type Dist>
 static void BM_slabhash_insert(::benchmark::State& state) {
 
-  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
-  
   std::size_t num_keys = state.range(0);
-  
-  std::size_t total_footprint = 1<<30;
-  float split_fraction = 0.0625;
 
-  std::size_t base_slabs_size = split_fraction * total_footprint;
-  std::size_t slab_size = 128;
-  std::size_t num_buckets = base_slabs_size / slab_size;
+  // Configure these three parameters for the particular benchmark
+  /*********************************************/
+  constexpr std::size_t total_footprint = 1<<30;
+  constexpr float split_fraction = 0.3125;
+  constexpr float thresh_lf = 0.75;
+  /*********************************************/
+
+  constexpr std::size_t base_slabs_size = split_fraction * total_footprint;
+  constexpr std::size_t slab_size = 128;
+  constexpr std::size_t num_buckets = base_slabs_size / slab_size;
+  
+  constexpr uint32_t log_num_mem_blocks = 9; // 64 MiB per super block
+  constexpr uint32_t num_super_blocks = get_num_super_blocks(log_num_mem_blocks, 
+    total_footprint, split_fraction);
+
   int64_t device_idx = 0;
   int64_t seed = 12;
+
+  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap, 
+                                  log_num_mem_blocks, num_super_blocks>;
   
   std::vector<Key> h_keys( num_keys );
   std::vector<cuco::pair_type<Key, Value>> h_pairs ( num_keys );
@@ -222,7 +246,7 @@ static void BM_slabhash_insert(::benchmark::State& state) {
   std::size_t batch_size = 1E7;
   for(auto _ : state) {
     auto build_time = 0.0f;
-    map_type map{batch_size, num_buckets, device_idx, seed};
+    map_type map{batch_size, num_buckets, device_idx, seed, true, false, false, thresh_lf};
     for(uint32_t i = 0; i < num_keys; i += batch_size) {
       build_time += map.hash_build_with_unique_keys(h_keys.data() + i, 
                                                     h_values.data() + i, batch_size);
@@ -238,18 +262,28 @@ static void BM_slabhash_insert(::benchmark::State& state) {
 template <typename Key, typename Value, dist_type Dist>
 static void BM_slabhash_find_all(::benchmark::State& state) {
 
-  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
-  
   std::size_t num_keys = state.range(0);
   
-  std::size_t total_footprint = 1<<30;
-  float split_fraction = 0.0625;
+  // Configure these three parameters for the particular benchmark
+  /*********************************************/
+  constexpr std::size_t total_footprint = 1<<30;
+  constexpr float split_fraction = 0.3125;
+  constexpr float thresh_lf = 0.75;
+  /*********************************************/
 
-  std::size_t base_slabs_size = split_fraction * total_footprint;
-  std::size_t slab_size = 128;
-  std::size_t num_buckets = base_slabs_size / slab_size;
+  constexpr std::size_t base_slabs_size = split_fraction * total_footprint;
+  constexpr std::size_t slab_size = 128;
+  constexpr std::size_t num_buckets = base_slabs_size / slab_size;
+  
+  constexpr uint32_t log_num_mem_blocks = 9; // 64 MiB per super block
+  constexpr uint32_t num_super_blocks = get_num_super_blocks(log_num_mem_blocks, 
+    total_footprint, split_fraction);
+ 
   int64_t device_idx = 0;
   int64_t seed = 12;
+  
+  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap, 
+                                  log_num_mem_blocks, num_super_blocks>;
   
   std::vector<Key> h_keys( num_keys );
   std::vector<cuco::pair_type<Key, Value>> h_pairs ( num_keys );
@@ -261,7 +295,7 @@ static void BM_slabhash_find_all(::benchmark::State& state) {
   thrust::device_vector<cuco::pair_type<Key, Value>> d_pairs( h_pairs );
 
   std::size_t batch_size = 1E7;
-  map_type map{num_keys, num_buckets, device_idx, seed};
+  map_type map{num_keys, num_buckets, device_idx, seed, true, false, false, thresh_lf};
   for(uint32_t i = 0; i < num_keys; i += batch_size) {
     map.hash_build_with_unique_keys(h_keys.data() + i, 
                                     h_values.data() + i, batch_size);
@@ -281,18 +315,28 @@ static void BM_slabhash_find_all(::benchmark::State& state) {
 template <typename Key, typename Value, dist_type Dist>
 static void BM_slabhash_find_none(::benchmark::State& state) {
 
-  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap>;
-  
   std::size_t num_keys = state.range(0);
   
-  std::size_t total_footprint = 1<<30;
-  float split_fraction = 0.0625;
+  // Configure these three parameters for the particular benchmark
+  /*********************************************/
+  constexpr std::size_t total_footprint = 1<<30;
+  constexpr float split_fraction = 0.0625;
+  constexpr float thresh_lf = 0.90;
+  /*********************************************/
 
-  std::size_t base_slabs_size = split_fraction * total_footprint;
-  std::size_t slab_size = 128;
-  std::size_t num_buckets = base_slabs_size / slab_size;
+  constexpr std::size_t base_slabs_size = split_fraction * total_footprint;
+  constexpr std::size_t slab_size = 128;
+  constexpr std::size_t num_buckets = base_slabs_size / slab_size;
+  
+  constexpr uint32_t log_num_mem_blocks = 9; // 64 MiB per super block
+  constexpr uint32_t num_super_blocks = get_num_super_blocks(log_num_mem_blocks, 
+    total_footprint, split_fraction);
+  
   int64_t device_idx = 0;
   int64_t seed = 12;
+  
+  using map_type = gpu_hash_table<Key, Value, SlabHashTypeT::ConcurrentMap, 
+                                  log_num_mem_blocks, num_super_blocks>;
   
   std::vector<Key> h_keys( num_keys );
   std::vector<Key> h_search_keys( num_keys );
@@ -306,7 +350,7 @@ static void BM_slabhash_find_none(::benchmark::State& state) {
   thrust::device_vector<cuco::pair_type<Key, Value>> d_pairs( h_pairs );
 
   std::size_t batch_size = 1E7;
-  map_type map{num_keys, num_buckets, device_idx, seed};
+  map_type map{num_keys, num_buckets, device_idx, seed, true, false, false, thresh_lf};
   for(uint32_t i = 0; i < num_keys; i += batch_size) {
     map.hash_build_with_unique_keys(h_keys.data() + i, 
                                     h_values.data() + i, batch_size);
@@ -323,42 +367,42 @@ static void BM_slabhash_find_none(::benchmark::State& state) {
                           int64_t(state.range(0)));
 }
 
-///*
+/*
 BENCHMARK_TEMPLATE(BM_dynamic_insert, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_final_size)
   ->UseManualTime();
 //*/
 
-///*
+/*
 BENCHMARK_TEMPLATE(BM_dynamic_find_all, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_final_size)
   ->UseManualTime();
 //*/
 
-///*
+/*
 BENCHMARK_TEMPLATE(BM_dynamic_find_all, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_final_size)
   ->UseManualTime();
 //*/
 
-///*
+//*
 BENCHMARK_TEMPLATE(BM_slabhash_insert, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_final_size)
   ->UseManualTime();
 //*/
 
-///*
+//*
 BENCHMARK_TEMPLATE(BM_slabhash_find_all, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_final_size)
   ->UseManualTime();
 //*/
 
-///*
+//*
 BENCHMARK_TEMPLATE(BM_slabhash_find_none, int32_t, int32_t, dist_type::UNIQUE)
   ->Unit(benchmark::kMillisecond)
   ->Apply(gen_final_size)
