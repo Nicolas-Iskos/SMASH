@@ -16,6 +16,9 @@
 
 #pragma once
 
+namespace cuco {
+namespace detail {
+
 using hash_value_type = uint32_t;
 
 // MurmurHash3_32 implementation from
@@ -93,3 +96,6 @@ private:
   }
   uint32_t m_seed;
 };
+
+} // namespace detail
+} // namespace cuco

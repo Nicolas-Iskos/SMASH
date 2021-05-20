@@ -22,7 +22,8 @@
 #include <cooperative_groups.h>
 #include <cub/cub.cuh>
 #include <cuco/legacy_static_map.cuh>
-#include <cuco/static_map.cuh>
+//#include <cuco/static_map.cuh>
+#include <cuco/static_reduction_map.cuh>
 #include <cuco/detail/dynamic_map_kernels.cuh>
 
 namespace cuco {
@@ -85,7 +86,7 @@ namespace cuco {
  * individual threads.
  */
 template <typename Key, typename Value, cuda::thread_scope Scope = cuda::thread_scope_device, 
-          template<typename, typename, cuda::thread_scope> typename submap_type = static_map>
+          template<typename, typename, cuda::thread_scope> typename submap_type = legacy_static_map>
 class dynamic_map {
   static_assert(std::is_arithmetic<Key>::value, "Unsupported, non-arithmetic key type.");
 
@@ -150,7 +151,7 @@ class dynamic_map {
    * @param key_equal The binary function to compare two keys for equality
    */
   template <typename InputIt,
-            typename Hash = MurmurHash3_32<key_type>,
+            typename Hash = cuco::detail::MurmurHash3_32<key_type>,
             typename KeyEqual = thrust::equal_to<key_type>>
   void insert(InputIt first, InputIt last, 
               Hash hash = Hash{},
@@ -175,7 +176,7 @@ class dynamic_map {
    * @param key_equal The binary function to compare two keys for equality
    */
   template <typename InputIt, typename OutputIt, 
-            typename Hash = MurmurHash3_32<key_type>,
+            typename Hash = cuco::detail::MurmurHash3_32<key_type>,
             typename KeyEqual = thrust::equal_to<key_type>>
   void find(
     InputIt first, InputIt last, OutputIt output_begin,
@@ -200,7 +201,7 @@ class dynamic_map {
    * @param key_equal The binary function to compare two keys for equality
    */
   template <typename InputIt, typename OutputIt, 
-            typename Hash = MurmurHash3_32<key_type>,
+            typename Hash = cuco::detail::MurmurHash3_32<key_type>,
             typename KeyEqual = thrust::equal_to<key_type>>
   void contains(
     InputIt first, InputIt last, OutputIt output_begin,
