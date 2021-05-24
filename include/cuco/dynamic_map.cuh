@@ -22,8 +22,7 @@
 #include <cooperative_groups.h>
 #include <cub/cub.cuh>
 #include <cuco/legacy_static_map.cuh>
-//#include <cuco/static_map.cuh>
-#include <cuco/static_reduction_map.cuh>
+#include <cuco/static_map.cuh>
 #include <cuco/detail/dynamic_map_kernels.cuh>
 
 namespace cuco {
@@ -118,7 +117,7 @@ class dynamic_map {
   * @param empty_key_sentinel The reserved key value for empty slots
   * @param empty_value_sentinel The reserved mapped value for empty slots
   */
-  dynamic_map(std::size_t initial_capacity, Key empty_key_sentinel, Value empty_value_sentinel);
+  dynamic_map(std::size_t initial_capacity, Key empty_key_sentinel, Value empty_value_sentinel, float max_load_factor=0.75);
   
   /**
    * @brief Destroy the map and frees its contents

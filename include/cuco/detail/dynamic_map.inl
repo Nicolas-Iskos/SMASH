@@ -21,13 +21,13 @@ namespace cuco {
 template<typename Key, typename Value, cuda::thread_scope Scope,
          template<typename, typename, cuda::thread_scope> typename submap_type>
 dynamic_map<Key, Value, Scope, submap_type>::dynamic_map(
-  std::size_t initial_capacity, Key empty_key_sentinel, Value empty_value_sentinel) :
+  std::size_t initial_capacity, Key empty_key_sentinel, Value empty_value_sentinel, float max_load_factor) :
   empty_key_sentinel_(empty_key_sentinel),
   empty_value_sentinel_(empty_value_sentinel),
   size_(0),
   capacity_(initial_capacity),
   min_insert_size_(1E4),
-  max_load_factor_(1) {
+  max_load_factor_(max_load_factor) {
 
   submaps_.push_back(
     std::unique_ptr<submap_type<Key, Value, Scope>>{

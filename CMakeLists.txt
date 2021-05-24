@@ -72,7 +72,7 @@ add_library(cuco INTERFACE)
 target_include_directories(cuco INTERFACE 
                            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                            $<INSTALL_INTERFACE:include>)
-target_link_libraries(cuco INTERFACE CUDA::cudart CUB::CUB)
+target_link_libraries(cuco INTERFACE CUDA::cudart)# CUB::CUB)
 target_compile_features(cuco INTERFACE cxx_std_14 cuda_std_14)
 
 
