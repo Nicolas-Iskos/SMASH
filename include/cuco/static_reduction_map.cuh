@@ -40,6 +40,10 @@
  #include <cuco/detail/static_reduction_map_kernels.cuh>
  
  namespace cuco {
+
+ template <typename ReductionOp, typename Key, typename Value, cuda::thread_scope Scope, typename Allocator,
+          template <typename, typename, typename, cuda::thread_scope, typename> typename submap_type>
+ class dynamic_map;
  
  template <typename T>
  struct reduce_add {
@@ -180,7 +184,7 @@
    static_assert(std::is_arithmetic<Key>::value, "Unsupported, non-arithmetic key type.");
    static_assert(std::is_same<typename ReductionOp::value_type, Value>::value,
                  "Type mismatch between ReductionOp::value_type and Value");
- 
+  friend class dynamic_map<ReductionOp, Key, Value, Scope, Allocator, static_reduction_map>;
   public:
    using value_type         = cuco::pair_type<Key, Value>;
    using key_type           = Key;

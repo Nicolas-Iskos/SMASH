@@ -72,12 +72,12 @@ add_library(cuco INTERFACE)
 target_include_directories(cuco INTERFACE 
                            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                            $<INSTALL_INTERFACE:include>)
-target_link_libraries(cuco INTERFACE CUDA::cudart CUB::CUB)
+target_link_libraries(cuco INTERFACE CUDA::cudart)
 target_compile_features(cuco INTERFACE cxx_std_14 cuda_std_14)
 
 
 # Build options
-option(BUILD_TESTS "Configure CMake to build tests" ON)
+option(BUILD_TESTS "Configure CMake to build tests" OFF)
 option(BUILD_BENCHMARKS "Configure CMake to build (google) benchmarks" ON)
 
 ###################################################################################################

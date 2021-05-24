@@ -59,8 +59,10 @@ static void gen_final_size(benchmark::internal::Benchmark* b) {
 template <typename Key, typename Value, dist_type Dist>
 static void BM_dynamic_insert(::benchmark::State& state) {
 
-  using map_type = cuco::dynamic_map<Key, Value,
+  using map_type = cuco::dynamic_map<cuco::reduce_add<Value>,
+                                     Key, Value,
                                      cuda::thread_scope_device,
+                                     cuco::cuda_allocator<char>,
                                      cuco::static_reduction_map>;
   
   std::size_t num_keys = state.range(0);
@@ -95,3 +97,8 @@ static void BM_dynamic_insert(::benchmark::State& state) {
                           int64_t(state.iterations()) *
                           int64_t(state.range(0)));
 }
+
+BENCHMARK_TEMPLATE(BM_dynamic_insert, int32_t, int32_t, dist_type::UNIQUE)
+  ->Unit(benchmark::kMillisecond)
+  ->Apply(gen_final_size)
+  ->UseManualTime();

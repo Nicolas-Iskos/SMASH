@@ -67,10 +67,10 @@ endfunction(ConfigureBench)
 ###################################################################################################
 
 ###################################################################################################
-set(DYNAMIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/dynamic_h2h_bench.cu")
-ConfigureBench(DYNAMIC_H2H_MAP_BENCH "${DYNAMIC_H2H_BENCH_SRC}")
+#set(DYNAMIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/dynamic_h2h_bench.cu")
+#ConfigureBench(DYNAMIC_H2H_MAP_BENCH "${DYNAMIC_H2H_BENCH_SRC}")
 # include the resizing version of SlabAlloc for the dynamic benchmarks
-target_include_directories(DYNAMIC_H2H_MAP_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHashResizing/SlabAlloc/src")
+#target_include_directories(DYNAMIC_H2H_MAP_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHashResizing/SlabAlloc/src")
 
 ###################################################################################################
 set(CRITEO_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/criteo_bench.cu")
@@ -79,13 +79,13 @@ ConfigureBench(CRITEO_BENCH "${CRITEO_BENCH_SRC}")
 target_include_directories(CRITEO_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHashResizing/SlabAlloc/src")
 
 ###################################################################################################
-set(STATIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/static_h2h_bench.cu")
-ConfigureBench(STATIC_H2H_MAP_BENCH "${STATIC_H2H_BENCH_SRC}")
+#set(STATIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/static_h2h_bench.cu")
+#ConfigureBench(STATIC_H2H_MAP_BENCH "${STATIC_H2H_BENCH_SRC}")
 # include the non-resizing version of SlabAlloc for the dynamic benchmarks
-target_include_directories(STATIC_H2H_MAP_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")
+#target_include_directories(STATIC_H2H_MAP_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")
 
 ###################################################################################################
-set(SLABHASH_MAX_LF_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/slabhash_max_lf.cu")
-ConfigureBench(SLABHASH_MAX_LF "${SLABHASH_MAX_LF_SRC}")
+#set(SLABHASH_MAX_LF_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/slabhash_max_lf.cu")
+#ConfigureBench(SLABHASH_MAX_LF "${SLABHASH_MAX_LF_SRC}")
 # include the non-resizing version of SlabAlloc for the dynamic benchmarks
-target_include_directories(SLABHASH_MAX_LF PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")
+#target_include_directories(SLABHASH_MAX_LF PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHash/SlabAlloc/src")
