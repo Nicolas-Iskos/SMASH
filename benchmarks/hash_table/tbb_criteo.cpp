@@ -64,6 +64,26 @@ void CountOccurrences() {
         //printf("%s %d\n",i->first.c_str(),i->second);
 }
 
+void get_nth_category(string& line, string& output, int n) {
+    const int start_offset = 14; // label + 13 non-categorical columns
+
+    int occurrence = 0;
+    int index = -1;
+    while(occurrence - start_offset < n) {
+        if((index = line.find("\t", index + 1)) != string::npos) {
+            cout << "indexl: " << index << endl;
+            occurrence++;
+        }
+    }
+
+    int start_pos = index + 1;
+    cout << "start_pos: " << start_pos << endl;
+    int end_pos = line.find("\t", index + 1);
+    cout << "end_pos: " << end_pos << endl;
+
+    output = line.substr(start_pos, end_pos - start_pos);
+}
+
 void process_data() {
 
     fstream criteo_data;
@@ -80,21 +100,15 @@ void process_data() {
 
     string line;
     getline(criteo_data, line);
+    //getline(criteo_data, line);
 
-    cout << line << endl;
+    string output;
+    get_nth_category(line, output, 0);
 
-    int num_tabs = 0;
-    for(auto i = 0; i < line.size(); ++i) {
-        if(line[i] == '\t') {
-            num_tabs++;
-        }
-    }
+    cout << "line: " << line << endl;
+    cout << "output: " << output << endl;
 
-    cout << "num_tabs: " << num_tabs << endl;
 
-    for(auto i = 0; i < N; ++i) {
-        Data[i] = to_string(i % (N / 4));
-    }
 
     criteo_data.close();    //close the file object
 }
