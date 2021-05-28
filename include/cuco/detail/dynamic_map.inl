@@ -27,7 +27,7 @@ dynamic_map<ReductionOp, Key, Value, Scope, Allocator, submap_type>::dynamic_map
   size_(0),
   capacity_(initial_capacity),
   min_insert_size_(1E4),
-  max_load_factor_(1) {
+  max_load_factor_(0.8) {
 
   submaps_.push_back(
     std::unique_ptr<submap_type<ReductionOp, Key, Value, Scope, Allocator>>{
@@ -62,6 +62,7 @@ void dynamic_map<ReductionOp, Key, Value, Scope, Allocator, submap_type>::reserv
     }
     // if the submap does not exist yet, create it
     else {
+      std::cout << "adding submap " << submaps_.size() + 1 << std::endl;
       submap_capacity = capacity_;
       submaps_.push_back(
         std::unique_ptr<submap_type<ReductionOp, Key, Value, Scope, Allocator>>{
@@ -107,7 +108,7 @@ void dynamic_map<ReductionOp, Key, Value, Scope, Allocator, submap_type>::insert
       float final_lf = static_cast<float>(submaps_[submap_idx]->get_size() + n) / 
                                            submaps_[submap_idx]->get_capacity();
 
-      if(final_lf > thresh_lf) {
+      if(1/*final_lf > thresh_lf*/) {
         auto const tile_size = 4;
         auto const grid_size = (tile_size * n + stride * block_size - 1) /
                               (stride * block_size);

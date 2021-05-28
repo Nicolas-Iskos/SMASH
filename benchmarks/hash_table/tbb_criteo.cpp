@@ -8,60 +8,131 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 using namespace tbb;
 using namespace std;
+
+
+using hash_value_type = uint32_t;
+
+// MurmurHash3_32 implementation from
+// https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+//-----------------------------------------------------------------------------
+// MurmurHash3 was written by Austin Appleby, and is placed in the public
+// domain. The author hereby disclaims copyright to this source code.
+// Note - The x86 and x64 versions do _not_ produce the same results, as the
+// algorithms are optimized for their respective platforms. You can still
+// compile and run any of them on any platform, but your performance with the
+// non-native version will be less than optimal.
+
+constexpr uint32_t rotl32(uint32_t x, int8_t r) 
+{
+    return (x << r) | (x >> (32 - r));
+}
+
+constexpr uint32_t fmix32(uint32_t h) 
+{
+    h ^= h >> 16;
+    h *= 0x85ebca6b;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35;
+    h ^= h >> 16;
+    return h;
+}
+
+
+  constexpr size_t mm_hash(uint32_t const& key) 
+  {
+    constexpr int len         = sizeof(uint32_t);
+    const uint8_t* const data = (const uint8_t*)&key;
+    constexpr int nblocks     = len / 4;
+
+    uint32_t m_seed = 0;
+    uint32_t h1           = m_seed;
+    constexpr uint32_t c1 = 0xcc9e2d51;
+    constexpr uint32_t c2 = 0x1b873593;
+    //----------
+    // body
+    const uint32_t* const blocks = (const uint32_t*)(data + nblocks * 4);
+    for (int i = -nblocks; i; i++) {
+      uint32_t k1 = blocks[i];  // getblock32(blocks,i);
+      k1 *= c1;
+      k1 = rotl32(k1, 15);
+      k1 *= c2;
+      h1 ^= k1;
+      h1 = rotl32(h1, 13);
+      h1 = h1 * 5 + 0xe6546b64;
+    }
+    //----------
+    // tail
+    const uint8_t* tail = (const uint8_t*)(data + nblocks * 4);
+    uint32_t k1         = 0;
+    switch (len & 3) {
+      case 3: k1 ^= tail[2] << 16;
+      case 2: k1 ^= tail[1] << 8;
+      case 1:
+        k1 ^= tail[0];
+        k1 *= c1;
+        k1 = rotl32(k1, 15);
+        k1 *= c2;
+        h1 ^= k1;
+    };
+    //----------
+    // finalization
+    h1 ^= len;
+    h1 = fmix32(h1);
+    return h1;
+  }
+
+
  
 // Structure that defines hashing and comparison operations for user's type.
 struct MyHashCompare {
-    static size_t hash( const string& x ) {
-        size_t h = 0;
-        for( const char* s = x.c_str(); *s; ++s )
-            h = (h*17)^*s;
-        return h;
+    static size_t hash( const uint32_t& x ) {
+        return mm_hash(x);
     }
     //! True if strings are equal
-    static bool equal( const string& x, const string& y ) {
+    static bool equal( const uint32_t& x, const uint32_t& y ) {
         return x==y;
     }
 };
  
 // A concurrent hash table that maps strings to ints.
-typedef concurrent_hash_map<string,int,MyHashCompare> StringTable;
+typedef concurrent_hash_map<uint32_t,int,MyHashCompare> uintTable;
  
 // Function object for counting occurrences of strings.
 struct Tally {
-    StringTable& table;
-    Tally( StringTable& table_ ) : table(table_) {}
-    void operator()( const blocked_range<string*> range ) const {
-        for( string* p=range.begin(); p!=range.end(); ++p ) {
-            StringTable::accessor a;
+    uintTable& table;
+    Tally( uintTable& table_ ) : table(table_) {}
+    void operator()( const blocked_range<uint32_t*> range ) const {
+        for( uint32_t* p=range.begin(); p!=range.end(); ++p ) {
+            uintTable::accessor a;
             table.insert( a, *p );
             a->second += 1;
         }
     }
 };
- 
-const size_t N = 1000000;
- 
-string Data[N];
+
+int num_lines = 195'841'983;
+uint32_t *int_data;
  
 void CountOccurrences() {
     // Construct empty table.
-    StringTable table;
+    uintTable table;
+
+    cout << "table size " << table.size() << endl;
 
     oneapi::tbb::tick_count t0 = oneapi::tbb::tick_count::now();
  
     // Put occurrences into the table
-    parallel_for( blocked_range<string*>( Data, Data+N, 1000 ),
+    parallel_for( blocked_range<uint32_t*>( int_data, int_data + num_lines, 1000 ),
                   Tally(table) );
 
     oneapi::tbb::tick_count t1 = oneapi::tbb::tick_count::now();
-    printf("time for action = %g mseconds\n", 1000 * (t1-t0).seconds() );
+    printf("time for action = %g milliseconds\n", 1000 * (t1-t0).seconds() );
  
-    // Display the occurrences
-    //for( StringTable::iterator i=table.begin(); i!=table.end(); ++i )
-        //printf("%s %d\n",i->first.c_str(),i->second);
+    cout << "table size " << table.size() << endl;
 }
 
 void get_nth_category(string& line, string& output, int n) {
@@ -71,16 +142,12 @@ void get_nth_category(string& line, string& output, int n) {
     int index = -1;
     while(occurrence - start_offset < n) {
         if((index = line.find("\t", index + 1)) != string::npos) {
-            cout << "indexl: " << index << endl;
             occurrence++;
         }
     }
 
     int start_pos = index + 1;
-    cout << "start_pos: " << start_pos << endl;
-    int end_pos = line.find("\t", index + 1);
-    cout << "end_pos: " << end_pos << endl;
-
+    int end_pos = line.find("\t", start_pos + 1);
     output = line.substr(start_pos, end_pos - start_pos);
 }
 
@@ -96,19 +163,20 @@ void process_data() {
     else {
         cout << "File not opened!" << endl;
     }
-   
 
+    
+    
+    int_data = new uint32_t[num_lines];
+    
     string line;
-    getline(criteo_data, line);
-    //getline(criteo_data, line);
+    for(auto i = 0; i < num_lines; ++i) {
+        getline(criteo_data, line);
+        string output;
+        get_nth_category(line, output, 0);
+        int_data[i] = stol(output, NULL, 16);
+    }
 
-    string output;
-    get_nth_category(line, output, 0);
-
-    cout << "line: " << line << endl;
-    cout << "output: " << output << endl;
-
-
+    cout << hex << int_data[0] << " " << int_data[1] << " " << int_data[2] << endl;    
 
     criteo_data.close();    //close the file object
 }
