@@ -10,8 +10,21 @@
 #include <fstream>
 #include <vector>
 
+#include <benchmark/benchmark.h>
+
 using namespace tbb;
 using namespace std;
+
+int num_lines = 195'841'983;
+int n_categories = 26;
+
+
+
+
+
+
+
+
 
 
 using hash_value_type = uint32_t;
@@ -42,48 +55,54 @@ constexpr uint32_t fmix32(uint32_t h)
 }
 
 
-  constexpr size_t mm_hash(uint32_t const& key) 
-  {
-    constexpr int len         = sizeof(uint32_t);
-    const uint8_t* const data = (const uint8_t*)&key;
-    constexpr int nblocks     = len / 4;
+constexpr size_t mm_hash(uint32_t const& key) 
+{
+constexpr int len         = sizeof(uint32_t);
+const uint8_t* const data = (const uint8_t*)&key;
+constexpr int nblocks     = len / 4;
 
-    uint32_t m_seed = 0;
-    uint32_t h1           = m_seed;
-    constexpr uint32_t c1 = 0xcc9e2d51;
-    constexpr uint32_t c2 = 0x1b873593;
-    //----------
-    // body
-    const uint32_t* const blocks = (const uint32_t*)(data + nblocks * 4);
-    for (int i = -nblocks; i; i++) {
-      uint32_t k1 = blocks[i];  // getblock32(blocks,i);
-      k1 *= c1;
-      k1 = rotl32(k1, 15);
-      k1 *= c2;
-      h1 ^= k1;
-      h1 = rotl32(h1, 13);
-      h1 = h1 * 5 + 0xe6546b64;
-    }
-    //----------
-    // tail
-    const uint8_t* tail = (const uint8_t*)(data + nblocks * 4);
-    uint32_t k1         = 0;
-    switch (len & 3) {
-      case 3: k1 ^= tail[2] << 16;
-      case 2: k1 ^= tail[1] << 8;
-      case 1:
-        k1 ^= tail[0];
-        k1 *= c1;
-        k1 = rotl32(k1, 15);
-        k1 *= c2;
-        h1 ^= k1;
-    };
-    //----------
-    // finalization
-    h1 ^= len;
-    h1 = fmix32(h1);
-    return h1;
-  }
+uint32_t m_seed = 0;
+uint32_t h1           = m_seed;
+constexpr uint32_t c1 = 0xcc9e2d51;
+constexpr uint32_t c2 = 0x1b873593;
+//----------
+// body
+const uint32_t* const blocks = (const uint32_t*)(data + nblocks * 4);
+for (int i = -nblocks; i; i++) {
+    uint32_t k1 = blocks[i];  // getblock32(blocks,i);
+    k1 *= c1;
+    k1 = rotl32(k1, 15);
+    k1 *= c2;
+    h1 ^= k1;
+    h1 = rotl32(h1, 13);
+    h1 = h1 * 5 + 0xe6546b64;
+}
+//----------
+// tail
+const uint8_t* tail = (const uint8_t*)(data + nblocks * 4);
+uint32_t k1         = 0;
+switch (len & 3) {
+    case 3: k1 ^= tail[2] << 16;
+    case 2: k1 ^= tail[1] << 8;
+    case 1:
+    k1 ^= tail[0];
+    k1 *= c1;
+    k1 = rotl32(k1, 15);
+    k1 *= c2;
+    h1 ^= k1;
+};
+//----------
+// finalization
+h1 ^= len;
+h1 = fmix32(h1);
+return h1;
+}
+
+
+
+
+
+
 
 
  
@@ -99,97 +118,91 @@ struct MyHashCompare {
 };
  
 // A concurrent hash table that maps strings to ints.
-typedef concurrent_hash_map<uint32_t,int,MyHashCompare> uintTable;
+typedef concurrent_hash_map<int32_t,int,MyHashCompare> intTable;
  
 // Function object for counting occurrences of strings.
 struct Tally {
-    uintTable& table;
-    Tally( uintTable& table_ ) : table(table_) {}
-    void operator()( const blocked_range<uint32_t*> range ) const {
-        for( uint32_t* p=range.begin(); p!=range.end(); ++p ) {
-            uintTable::accessor a;
+    intTable& table;
+    Tally( intTable& table_ ) : table(table_) {}
+    void operator()( const blocked_range<int32_t*> range ) const {
+        for( int32_t* p=range.begin(); p!=range.end(); ++p ) {
+            intTable::accessor a;
             table.insert( a, *p );
             a->second += 1;
         }
     }
 };
 
-int num_lines = 195'841'983;
-uint32_t *int_data;
- 
-void CountOccurrences() {
+template <typename Key>
+float CountOccurrences(std::vector<Key> keys) {
     // Construct empty table.
-    uintTable table;
-
-    cout << "table size " << table.size() << endl;
+    intTable table;
 
     oneapi::tbb::tick_count t0 = oneapi::tbb::tick_count::now();
  
     // Put occurrences into the table
-    parallel_for( blocked_range<uint32_t*>( int_data, int_data + num_lines, 1000 ),
+    parallel_for( blocked_range<int32_t*>( keys.data(), keys.data() + num_lines, 1000 ),
                   Tally(table) );
 
     oneapi::tbb::tick_count t1 = oneapi::tbb::tick_count::now();
-    printf("time for action = %g milliseconds\n", 1000 * (t1-t0).seconds() );
- 
-    cout << "table size " << table.size() << endl;
+
+    return (t1-t0).seconds();
 }
 
-void get_nth_category(string& line, string& output, int n) {
-    const int start_offset = 14; // label + 13 non-categorical columns
 
-    int occurrence = 0;
-    int index = -1;
-    while(occurrence - start_offset < n) {
-        if((index = line.find("\t", index + 1)) != string::npos) {
-            occurrence++;
-        }
-    }
 
-    int start_pos = index + 1;
-    int end_pos = line.find("\t", start_pos + 1);
-    output = line.substr(start_pos, end_pos - start_pos);
+
+
+
+
+
+
+// broken: 9, 15, 19, 20, 21
+
+static void gen_category(benchmark::internal::Benchmark* b) {
+  for(auto idx = 22; idx < n_categories; ++idx) {
+    b->Args({idx});
+  }
 }
 
-void process_data() {
+template <typename Key, typename Value>
+static void BM_tbb_insert(::benchmark::State& state) {
 
-    fstream criteo_data;
-    criteo_data.open("/home/nico/Documents/day_0", ios::in);
-    if(criteo_data.is_open()) //checking whether the file is open
-    {
-       cout << "File successfully opened..." << endl;
-       
-    }
-    else {
-        cout << "File not opened!" << endl;
-    }
+  int category = state.range(0);
+  std::size_t num_keys = num_lines;
 
-    
-    
-    int_data = new uint32_t[num_lines];
-    
+  std::vector<Key> keys( num_keys );
+
+  fstream criteo_data;
+  criteo_data.open("/home/nico/Documents/category_" + std::to_string(category));
+  if(criteo_data.is_open()) {
+    cout << "File successfully opened..." << endl;
+  }
+  else {
+    cout << "File not opened!" << endl;
+  }
+
+  // read file data into key buffer
+  for(auto i = 0; i < num_keys; ++i) {
     string line;
-    for(auto i = 0; i < num_lines; ++i) {
-        getline(criteo_data, line);
-        string output;
-        get_nth_category(line, output, 0);
-        int_data[i] = stol(output, NULL, 16);
-    }
+    getline(criteo_data, line);
+    keys[i] = stol(line, NULL, 16);
+  }
+  criteo_data.close();
 
-    cout << hex << int_data[0] << " " << int_data[1] << " " << int_data[2] << endl;    
+    
+  int num_threads = 12;
+  oneapi::tbb::global_control c(oneapi::tbb::global_control::max_allowed_parallelism,
+                                num_threads);
 
-    criteo_data.close();    //close the file object
+
+  for(auto _ : state) {
+    float build_time = CountOccurrences(keys);
+    state.SetIterationTime(build_time);
+  }
 }
 
-int main() {
-
-    process_data();
-
-    int num_threads = 12;
-    oneapi::tbb::global_control c(oneapi::tbb::global_control::max_allowed_parallelism,
-                                          num_threads);
-
-    CountOccurrences();
-
-    return 0;
-}
+BENCHMARK_TEMPLATE(BM_tbb_insert, int32_t, int32_t)
+  ->Unit(benchmark::kMillisecond)
+  ->Apply(gen_category)
+  ->UseManualTime();

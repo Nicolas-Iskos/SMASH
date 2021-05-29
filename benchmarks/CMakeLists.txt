@@ -1,5 +1,7 @@
 ﻿cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
+find_package(TBB REQUIRED tbb)
+
 include(CPM)
 
 CPMAddPackage(
@@ -56,9 +58,13 @@ function(ConfigureBench BENCH_NAME BENCH_SRC)
                                         pthread 
                                         cuco
                                         WARPCORE
+                                        TBB::tbb
                                         )
-
-    target_compile_options(${BENCH_NAME} PRIVATE --expt-extended-lambda --expt-relaxed-constexpr)
+    if("${BENCH_NAME}" STREQUAL "TBB_CRITEO_BENCH")
+      target_compile_options(${BENCH_NAME} PRIVATE -ltbb)
+    else()
+      target_compile_options(${BENCH_NAME} PRIVATE --expt-extended-lambda --expt-relaxed-constexpr)
+    endif()
 
 endfunction(ConfigureBench)
 
@@ -76,7 +82,11 @@ endfunction(ConfigureBench)
 set(CRITEO_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/criteo_bench.cu")
 ConfigureBench(CRITEO_BENCH "${CRITEO_BENCH_SRC}")
 # include the resizing version of SlabAlloc for the dynamic benchmarks
-target_include_directories(CRITEO_BENCH PRIVATE "${CMAKE_SOURCE_DIR}/include/SlabHashResizing/SlabAlloc/src")
+
+###################################################################################################
+set(TBB_CRITEO_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/tbb_criteo.cpp")
+ConfigureBench(TBB_CRITEO_BENCH "${TBB_CRITEO_BENCH_SRC}")
+# include the resizing version of SlabAlloc for the dynamic benchmarks
 
 ###################################################################################################
 #set(STATIC_H2H_BENCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/hash_table/static_h2h_bench.cu")
